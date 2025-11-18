@@ -1,0 +1,728 @@
+---
+// Fables of Galaeffa Name Generator - Astro Page
+//
+// INTEGRATION STEPS:
+// 1. Copy this file to: src/pages/name-generator.astro (or tools/name-generator.astro)
+// 2. Copy names.json to: public/names.json
+// 3. Copy fables.png to: public/images/fables.png
+// 4. Make sure Recoleta font is loaded in your main layout or add @font-face here
+
+const pageTitle = "Fables of Galaeffa Character Generator";
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta name="description" content="Generate fantasy character names for the Fables of Galaeffa universe">
+	<title>{pageTitle}</title>
+</head>
+<body>
+	<div class="wrapper">
+		<div class="container">
+			<div class="image-wrapper">
+				<div class="image-container">
+					<img src="/images/fables.png"
+						 title="Fables of Galaeffa Logo"
+						 alt="Two caricatures of personified moons, one with an open 'third eye' with its two other eyes closed in apparent bliss. The second moon is giving a scornful look, blinded in its 'third eye', these moons are Gaella and Laeffa respectively. The moons border the logo which reads Fables of Galaeffa." />
+				</div>
+			</div>
+
+			<h1 class="title">Character Generator</h1>
+			<br>
+
+			<div class="form-group">
+				<select id="gender" title="Character name gender select menu.">
+					<option selected disabled>Gender Preference</option>
+					<option value="masculine">Masculine</option>
+					<option value="feminine">Feminine</option>
+					<option value="neutral">Neutral</option>
+				</select>
+			</div>
+
+			<br>
+			<div class="button-group">
+				<a href="/" class="home-button">← Home</a>
+				<button id="generate">Generate Name</button>
+				<button id="copy" style="display: none;">Copy Name</button>
+			</div>
+			<br>
+			<div id="result"></div>
+
+			<!-- Name History -->
+			<div id="history-container" style="display: none;">
+				<h3>Recent Names</h3>
+				<div id="history-list"></div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Star background -->
+	<div class="stars"></div>
+
+	<!-- SVG Filter for noise effect -->
+	<svg style="position: absolute; width: 0; height: 0;">
+		<filter id='noiseFilter'>
+			<feTurbulence
+				type='fractalNoise'
+				baseFrequency='0.6'
+				stitchTiles='stitch'/>
+			<feColorMatrix in="colorNoise" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0" />
+			<feComposite operator="in" in2="SourceGraphic" result="monoNoise"/>
+			<feBlend in="SourceGraphic" in2="monoNoise" mode="screen" />
+		</filter>
+	</svg>
+
+	<script>
+		// Generate stars dynamically
+		function createStars() {
+			const starsContainer = document.querySelector('.stars');
+			if (!starsContainer) return;
+
+			const starCount = 200;
+			for (let i = 0; i < starCount; i++) {
+				const star = document.createElement('div');
+				star.className = 'star';
+
+				// Random chance for blue or shooting star
+				const rand = Math.random();
+				if (rand > 0.95) {
+					star.classList.add('shooting');
+				} else if (rand > 0.85) {
+					star.classList.add('blue');
+				}
+
+				// Random position
+				star.style.top = `${Math.random() * 100}vh`;
+				star.style.left = `${Math.random() * 100}vw`;
+
+				// Random animation delay
+				star.style.animationDelay = `-${Math.random() * 20}s`;
+				star.style.animationDuration = `${15 + Math.random() * 10}s`;
+
+				starsContainer.appendChild(star);
+			}
+		}
+
+		// Custom dropdown functionality
+		function initCustomSelect() {
+			const selectElement = document.getElementById('gender');
+			if (!selectElement) return;
+
+			const parent = selectElement.parentElement;
+			if (!parent) return;
+
+			// Create custom select
+			const selectedDiv = document.createElement('div');
+			selectedDiv.className = 'select-selected';
+			selectedDiv.textContent = selectElement.options[selectElement.selectedIndex].textContent;
+			parent.appendChild(selectedDiv);
+
+			// Create items container
+			const itemsDiv = document.createElement('div');
+			itemsDiv.className = 'select-items select-hide';
+
+			for (let i = 1; i < selectElement.options.length; i++) {
+				const optionDiv = document.createElement('div');
+				optionDiv.textContent = selectElement.options[i].textContent;
+				optionDiv.dataset.value = selectElement.options[i].value;
+
+				optionDiv.addEventListener('click', function() {
+					selectElement.value = this.dataset.value || '';
+					selectedDiv.textContent = this.textContent;
+
+					// Remove previous selection
+					const siblings = this.parentElement?.children;
+					if (siblings) {
+						for (let s of siblings) {
+							s.classList.remove('same-as-selected');
+						}
+					}
+					this.classList.add('same-as-selected');
+					selectedDiv.click();
+				});
+
+				itemsDiv.appendChild(optionDiv);
+			}
+
+			parent.appendChild(itemsDiv);
+
+			// Toggle dropdown
+			selectedDiv.addEventListener('click', function(e) {
+				e.stopPropagation();
+				closeAllSelect(this);
+				itemsDiv.classList.toggle('select-hide');
+				this.classList.toggle('select-arrow-active');
+			});
+		}
+
+		function closeAllSelect(element?: Element) {
+			const items = document.getElementsByClassName('select-items');
+			const selected = document.getElementsByClassName('select-selected');
+
+			for (let i = 0; i < selected.length; i++) {
+				if (element !== selected[i]) {
+					selected[i].classList.remove('select-arrow-active');
+				}
+			}
+
+			for (let i = 0; i < items.length; i++) {
+				if (element !== items[i].previousElementSibling) {
+					items[i].classList.add('select-hide');
+				}
+			}
+		}
+
+		document.addEventListener('click', () => closeAllSelect());
+
+		// Load names and setup name generator
+		let currentName = '';
+		let nameHistory = [];
+		const MAX_HISTORY = 5;
+
+		// Load history from localStorage
+		function loadHistory() {
+			try {
+				const saved = localStorage.getItem('nameHistory');
+				if (saved) {
+					nameHistory = JSON.parse(saved);
+					updateHistoryDisplay();
+				}
+			} catch (err) {
+				console.error('Failed to load history:', err);
+			}
+		}
+
+		// Save history to localStorage
+		function saveHistory() {
+			try {
+				localStorage.setItem('nameHistory', JSON.stringify(nameHistory));
+			} catch (err) {
+				console.error('Failed to save history:', err);
+			}
+		}
+
+		// Add name to history
+		function addToHistory(name: string) {
+			// Add to beginning of array
+			nameHistory.unshift(name);
+
+			// Keep only last MAX_HISTORY items
+			if (nameHistory.length > MAX_HISTORY) {
+				nameHistory = nameHistory.slice(0, MAX_HISTORY);
+			}
+
+			saveHistory();
+			updateHistoryDisplay();
+		}
+
+		// Update history display
+		function updateHistoryDisplay() {
+			const historyContainer = document.getElementById('history-container');
+			const historyList = document.getElementById('history-list');
+
+			if (!historyList || !historyContainer) return;
+
+			if (nameHistory.length === 0) {
+				historyContainer.style.display = 'none';
+				return;
+			}
+
+			historyContainer.style.display = 'block';
+			historyList.innerHTML = '';
+
+			nameHistory.forEach((name, index) => {
+				const nameItem = document.createElement('div');
+				nameItem.className = 'history-item';
+				nameItem.textContent = name;
+				nameItem.title = 'Click to copy this name';
+
+				nameItem.addEventListener('click', async () => {
+					try {
+						await navigator.clipboard.writeText(name);
+						const originalText = nameItem.textContent;
+						nameItem.textContent = 'Copied!';
+						setTimeout(() => {
+							nameItem.textContent = originalText;
+						}, 1500);
+					} catch (err) {
+						console.error('Failed to copy:', err);
+					}
+				});
+
+				historyList.appendChild(nameItem);
+			});
+		}
+
+		fetch("/names.json")
+			.then(response => response.json())
+			.then(names => {
+				names.all = [...names.masculine, ...names.feminine, ...names.neutral];
+
+				const generateBtn = document.getElementById("generate");
+				const copyBtn = document.getElementById("copy");
+				const resultDiv = document.getElementById("result");
+
+				if (!generateBtn || !resultDiv) return;
+
+				// Load existing history
+				loadHistory();
+
+				generateBtn.addEventListener("click", () => {
+					const genderSelect = document.getElementById("gender") as HTMLSelectElement;
+					if (!genderSelect || !genderSelect.value) {
+						resultDiv.innerText = "Please select a gender preference first!";
+						return;
+					}
+
+					const gender = genderSelect.value;
+					const firstName = names[gender][Math.floor(Math.random() * names[gender].length)];
+					let lastName = names.lastNames[Math.floor(Math.random() * names.lastNames.length)];
+
+					const randomNum = Math.floor(Math.random() * 3) + 1;
+					if (randomNum === 1) {
+						let suffix = gender === "masculine" ? "son" : gender === "feminine" ? "sdottir" : "sprog";
+						lastName = names.all[Math.floor(Math.random() * names.all.length)] + suffix;
+					}
+
+					const godName = names.gods[Math.floor(Math.random() * names.gods.length)];
+					const coinFlip = Math.floor(Math.random() * 2) === 0 ? "Gaella" : "Laeffa";
+
+					currentName = `${firstName} ${lastName} was born under the sign of ${godName} and holds the favor of ${coinFlip}.`;
+					resultDiv.innerText = currentName;
+
+					// Add to history
+					addToHistory(currentName);
+
+					// Show copy button
+					if (copyBtn) copyBtn.style.display = 'inline-block';
+				});
+
+				// Copy to clipboard functionality
+				if (copyBtn) {
+					copyBtn.addEventListener("click", async () => {
+						try {
+							await navigator.clipboard.writeText(currentName);
+							const originalText = copyBtn.textContent;
+							copyBtn.textContent = 'Copied!';
+							setTimeout(() => {
+								copyBtn.textContent = originalText;
+							}, 2000);
+						} catch (err) {
+							console.error('Failed to copy:', err);
+						}
+					});
+				}
+			})
+			.catch(error => {
+				console.error("Error loading names:", error);
+				const resultDiv = document.getElementById("result");
+				if (resultDiv) {
+					resultDiv.innerText = "Error loading name data. Please refresh the page.";
+				}
+			});
+
+		// Initialize on load
+		createStars();
+		initCustomSelect();
+	</script>
+</body>
+</html>
+
+<style>
+	/* Global Styles */
+	body {
+		position: relative;
+		margin: 0;
+		height: 100vh;
+		overflow: hidden;
+	}
+
+	/* Noise filter effect on wrapper */
+	.wrapper::before,
+	.wrapper::after {
+		background: linear-gradient(#000 0%, #1b1e33 100%);
+		filter: url(#noiseFilter);
+		mix-blend-mode: overlay;
+		position: fixed;
+		left: 0;
+		top: 0;
+		content: '';
+		width: 100%;
+		height: 100%;
+		z-index: 10;
+		opacity: 0.3;
+		pointer-events: none;
+	}
+
+	.wrapper {
+		background: linear-gradient(#000 0%, #1b1e33 100%);
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		height: 100vh;
+		z-index: 0;
+	}
+
+	.container {
+		margin: auto;
+		width: 50%;
+		text-align: center;
+		position: relative;
+		z-index: 100;
+	}
+
+	/* Typography */
+	h1 {
+		font-weight: bolder;
+		margin: 0;
+		font-family: "Recoleta", serif;
+		color: #fab472;
+		font-size: x-large;
+		user-select: none;
+	}
+
+	br {
+		user-select: none;
+	}
+
+	/* Image Container */
+	.image-wrapper {
+		position: relative;
+		z-index: 0;
+		pointer-events: none;
+		user-select: none;
+	}
+
+	.image-container {
+		position: relative;
+		overflow: hidden;
+	}
+
+	img {
+		max-width: 100%;
+		max-height: 100%;
+	}
+
+	/* Button Group */
+	.button-group {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		gap: 10px;
+		position: relative;
+		z-index: 50;
+	}
+
+	/* Home Button */
+	.home-button {
+		padding: 10px 20px;
+		border-radius: 8px;
+		cursor: pointer;
+		font-family: "Recoleta", serif;
+		font-weight: bolder;
+		font-size: medium;
+		background-color: #adb0d8;
+		color: #2a0000;
+		border: 2px solid #494687;
+		transition-duration: 0.4s;
+		text-decoration: none;
+		user-select: none;
+		display: inline-block;
+		margin-right: 20px;
+	}
+
+	.home-button:hover {
+		background-color: #2a0000;
+		color: #adb0d8;
+	}
+
+	/* Form Group / Custom Dropdown */
+	.form-group {
+		width: 12em;
+		position: relative;
+		font-family: "Recoleta", serif;
+		font-weight: bold;
+		font-size: 20px;
+		left: 50%;
+		transform: translateX(-50%);
+		margin: 0;
+		color: #fab472;
+		z-index: 200;
+	}
+
+	.form-group select {
+		display: none !important; /* hide original SELECT element */
+	}
+
+	label {
+		display: block;
+		margin-bottom: 5px;
+	}
+
+	/* Custom Select Styling */
+	:global(.select-selected) {
+		background-color: #fab472;
+		user-select: none;
+		color: #2a0000;
+		padding: 8px 16px;
+		border-radius: 8px;
+		border: 2px solid #494687;
+		cursor: pointer;
+		display: block;
+		position: relative;
+	}
+
+	:global(.select-selected:after) {
+		position: absolute;
+		content: "";
+		top: 18px;
+		right: 12px;
+		width: 0;
+		height: 0;
+		border: 6px solid transparent;
+		border-color: #2a0000 transparent transparent transparent;
+	}
+
+	:global(.select-selected.select-arrow-active:after) {
+		border-color: transparent transparent #2a0000 transparent;
+		top: 7px;
+	}
+
+	:global(.select-items div) {
+		user-select: none;
+		color: #2a0000;
+		padding: 8px 16px;
+		cursor: pointer;
+		border-bottom: 1px solid rgba(73, 70, 135, 0.2);
+	}
+
+	:global(.select-items div:last-child) {
+		border-bottom: none;
+	}
+
+	:global(.select-items) {
+		user-select: none;
+		position: absolute;
+		background-color: #fab472;
+		border-radius: 8px;
+		width: 100%;
+		top: calc(100% + 5px);
+		left: 0;
+		z-index: 2000;
+		box-sizing: border-box;
+		box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+		border: 2px solid #494687;
+	}
+
+	:global(.select-hide) {
+		display: none;
+	}
+
+	:global(.select-items div:hover),
+	:global(.same-as-selected) {
+		background-color: rgba(0, 0, 0, 0.1);
+	}
+
+	/* Buttons */
+	button {
+		padding: 10px;
+		border-radius: 8px;
+		cursor: pointer;
+		font-family: "Recoleta", serif;
+		font-weight: bolder;
+		font-size: medium;
+		height: fit-content;
+		width: fit-content;
+		background-color: #adb0d8;
+		color: #2a0000;
+		border: 2px solid #494687;
+		transition-duration: 0.4s;
+		user-select: none;
+		margin: 0 5px;
+	}
+
+	button:hover {
+		background-color: #2a0000;
+		color: #adb0d8;
+	}
+
+	/* Result Display */
+	#result {
+		position: relative;
+		margin-top: 1em;
+		font-weight: bolder;
+		font-family: "Recoleta", serif;
+		color: #ff4747;
+		font-size: x-large;
+	}
+
+	/* Name History */
+	#history-container {
+		margin-top: 2em;
+		padding: 1em;
+		border-radius: 12px;
+		background-color: rgba(42, 0, 0, 0.3);
+		border: 2px solid #494687;
+		max-width: 45%;
+		margin-left: auto;
+		margin-right: auto;
+	}
+
+	#history-container h3 {
+		font-family: "Recoleta", serif;
+		font-weight: bolder;
+		color: #fab472 !important;
+		margin: 0 0 0.5em 0;
+		font-size: large;
+		user-select: none;
+	}
+
+	#history-list {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	:global(.history-item) {
+		font-family: "Recoleta", serif;
+		font-weight: bold;
+		color: #adb0d8 !important;
+		background-color: rgba(73, 70, 135, 0.3);
+		padding: 10px 15px;
+		border-radius: 8px;
+		cursor: pointer;
+		transition: all 0.3s ease;
+		border: 1px solid transparent;
+		font-size: medium;
+		text-align: left;
+		user-select: none;
+	}
+
+	:global(.history-item:hover) {
+		background-color: rgba(73, 70, 135, 0.6);
+		border-color: #adb0d8;
+		transform: translateX(5px);
+	}
+
+	/* Stars Container */
+	:global(.stars) {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		z-index: 5;
+		overflow: hidden;
+		pointer-events: none;
+	}
+
+	/* Star Styling */
+	:global(.star) {
+		position: absolute;
+		width: 3px;
+		height: 3px;
+		border-radius: 50%;
+		pointer-events: none;
+		animation: twinkle infinite;
+		animation-delay: -18s;
+		background: linear-gradient(135deg, #ffffff, #086ff7);
+	}
+
+	:global(.star.blue) {
+		background: linear-gradient(100deg, rgb(126, 55, 240), rgba(54, 170, 228, 0.3));
+		animation: twinkle infinite;
+		animation-delay: -20s;
+	}
+
+	:global(.star.shooting) {
+		background: linear-gradient(135deg, rgba(250, 180, 114, 1), rgb(255, 226, 96));
+		animation: shooting-star 2s linear infinite;
+		animation-delay: -20s;
+	}
+
+	/* Keyframe Animations */
+	:global(@keyframes shooting-star) {
+		0% {
+			opacity: 1;
+			transform: translateX(-45vh) translateY(-45vh);
+		}
+		70% {
+			opacity: 1;
+			transform: translateX(45vh) translateY(45vh);
+		}
+		80% {
+			opacity: 0;
+		}
+		100% {
+			opacity: 0;
+			transform: translateX(45vh) translateY(45vh);
+		}
+	}
+
+	:global(@keyframes twinkle) {
+		5% { opacity: 1; }
+		15% { opacity: 0.3; }
+		68% { opacity: 0.3; }
+		74% { opacity: 1; }
+		78% { opacity: 0.3; }
+	}
+
+	/* Responsive Design */
+	@media (max-width: 768px) {
+		.container {
+			width: 95%;
+		}
+
+		h1 {
+			font-size: 1.5rem;
+		}
+
+		#result {
+			font-size: 16px;
+		}
+
+		.button-group {
+			flex-wrap: wrap;
+			gap: 8px;
+		}
+
+		.home-button {
+			padding: 8px 12px;
+			font-size: small;
+			margin-right: 0;
+		}
+
+		button {
+			padding: 8px 12px;
+			font-size: small;
+		}
+
+		.form-group {
+			width: 90%;
+			font-size: 18px;
+		}
+
+		#history-container {
+			max-width: 90%;
+			margin-top: 1.5em;
+			padding: 0.8em;
+		}
+
+		#history-container h3 {
+			font-size: medium;
+		}
+
+		:global(.history-item) {
+			font-size: small;
+			padding: 8px 12px;
+		}
+
+		.image-container {
+			max-width: 80%;
+			margin: 0 auto;
+		}
+	}
+</style>

@@ -1,0 +1,259 @@
+---
+// Tab Navigation Component - Post-it style tabs with dark mode toggle
+interface Props {
+  currentPage: string;
+}
+
+const { currentPage } = Astro.props;
+
+const pages = [
+  { name: 'Home', url: '/', color: '#ffd97d' },
+  { name: 'Projects', url: '/projects', color: '#ff9b9b' },
+  { name: 'Products', url: '/products', color: '#a2d2ff' },
+  { name: 'Resources', url: '/resources', color: '#bdb2ff' },
+  { name: 'About', url: '/about', color: '#caffbf' }
+];
+---
+
+<nav class="tab-navigation">
+  {pages.map((page, index) => (
+    <a
+      href={page.url}
+      class={`tab ${currentPage === page.name.toLowerCase() ? 'active' : ''}`}
+      style={`--tab-color: ${page.color}; --tab-index: ${index};`}
+      aria-current={currentPage === page.name.toLowerCase() ? 'page' : undefined}
+    >
+      <span class="tab-text">{page.name}</span>
+    </a>
+  ))}
+
+  <!-- Dark Mode Toggle Tab -->
+  <button
+    id="theme-toggle"
+    class="tab theme-tab"
+    aria-label="Toggle dark mode"
+    style="--tab-index: 5;"
+  >
+    <span class="tab-text theme-icon">
+      <span class="light-icon">☀</span>
+      <span class="dark-icon">☀</span>
+    </span>
+  </button>
+</nav>
+
+<script>
+  // Theme toggle functionality
+  const toggleButton = document.getElementById('theme-toggle');
+
+  function updateTheme(theme: string) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }
+
+  toggleButton?.addEventListener('click', () => {
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    updateTheme(newTheme);
+  });
+</script>
+
+<style>
+  .tab-navigation {
+    position: fixed;
+    /* Position tabs to the right of the paper sheet */
+    left: 50%;
+    margin-left: calc(var(--page-max-width) / 2);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .tab {
+    position: relative;
+    width: 120px;
+    height: 50px;
+    background: var(--tab-color);
+    border: 2px solid #1a1a1a;
+    border-left: none;
+    border-radius: 0 8px 8px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    color: #1a1a1a;
+    font-family: var(--font-handwritten);
+    font-size: 1.1rem;
+    font-weight: 700;
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    box-shadow:
+      3px 3px 5px var(--shadow-light),
+      inset -1px 1px 0 rgba(255, 255, 255, 0.5);
+    transform: translateX(0) rotate(calc(var(--tab-index) * 0.5deg));
+    cursor: pointer;
+  }
+
+  .tab::before {
+    content: '';
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    right: -3px;
+    bottom: -3px;
+    border-radius: 0 8px 8px 0;
+    background: inherit;
+    opacity: 0.3;
+    filter: blur(2px);
+    z-index: -1;
+  }
+
+  .tab::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background: radial-gradient(circle, rgba(0,0,0,0.1) 0%, transparent 70%);
+    border-radius: 50%;
+    top: 50%;
+    right: 15px;
+    transform: translateY(-50%);
+  }
+
+  .tab:hover {
+    transform: translateX(15px) rotate(0deg) scale(1.05);
+    box-shadow:
+      5px 5px 10px var(--shadow),
+      inset -1px 1px 0 rgba(255, 255, 255, 0.7);
+  }
+
+  .tab.active {
+    transform: translateX(20px) rotate(0deg) scale(1.1);
+    box-shadow:
+      6px 6px 12px var(--shadow),
+      inset -2px 2px 0 rgba(255, 255, 255, 0.8);
+    border-width: 3px;
+    z-index: 10;
+  }
+
+  .tab-text {
+    position: relative;
+    z-index: 1;
+    text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.5);
+    transform: rotate(2deg);
+  }
+
+  /* Theme toggle tab */
+  .theme-tab {
+    --tab-color: #1a1a1a;
+    margin-top: var(--spacing-md);
+    color: #fafafa;
+    border-color: #1a1a1a;
+  }
+
+  [data-theme="dark"] .theme-tab {
+    --tab-color: #ffffff;
+    color: #1a1a1a;
+    border-color: #ffffff;
+  }
+
+  .theme-icon {
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .light-icon,
+  .dark-icon {
+    position: absolute;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+
+  .light-icon {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .dark-icon {
+    opacity: 0;
+    transform: scale(0);
+  }
+
+  [data-theme="dark"] .light-icon {
+    opacity: 0;
+    transform: scale(0);
+  }
+
+  [data-theme="dark"] .dark-icon {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  /* Mobile responsive */
+  @media (max-width: 768px) {
+    .tab-navigation {
+      position: fixed;
+      bottom: 0;
+      top: auto;
+      left: 0;
+      right: 0;
+      margin-left: 0;
+      transform: none;
+      flex-direction: row;
+      justify-content: space-around;
+      padding: 0.5rem;
+      background: var(--page-dark);
+      border-top: 3px solid var(--border-color);
+      box-shadow: 0 -4px 10px var(--shadow);
+    }
+
+    .tab {
+      width: auto;
+      flex: 1;
+      max-width: 80px;
+      height: 45px;
+      border-radius: 8px 8px 0 0;
+      border: 2px solid #1a1a1a;
+      border-bottom: none;
+      transform: translateY(20px) rotate(0deg);
+      font-size: 0.85rem;
+      color: #1a1a1a;
+    }
+
+    .tab::after {
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .tab:hover {
+      transform: translateY(15px) scale(1.05);
+    }
+
+    .tab.active {
+      transform: translateY(10px) scale(1.1);
+    }
+
+    .tab-text {
+      transform: rotate(0deg);
+    }
+
+    .theme-tab {
+      margin-top: 0;
+      max-width: 50px;
+      color: #fafafa;
+      border-color: #1a1a1a;
+    }
+
+    [data-theme="dark"] .theme-tab {
+      color: #1a1a1a;
+      border-color: #ffffff;
+    }
+
+    .theme-icon {
+      font-size: 1.3rem;
+    }
+  }
+</style>
