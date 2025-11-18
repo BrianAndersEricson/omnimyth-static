@@ -30,7 +30,7 @@ Please take a look at our offerings. If they have made it to this page, they hav
 
 ### Free Resources
 
-Access a handful of tools, resources, and projects that I have made for use at my own table, let me know if you use them at yours!.
+Access a handful of tools, resources, and projects that I have made for use at my own table. Let me know if you use them at yours!
 
 ### Solo Passion
 

@@ -19,7 +19,7 @@ Everything here is free to use for your tabletop gaming sessions. There's no tra
 
 Downloadable character sheet for OmniMyth.
 
-[Download PDF](/public/resources/omnimythgame/charsheet.pdf)
+[Download PDF](/resources/omnimythgame/charsheet.pdf)
 
 ### Name Generator
 
