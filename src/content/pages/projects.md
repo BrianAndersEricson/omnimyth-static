@@ -33,6 +33,6 @@ Taking the lessons learned from our ruleset OmniMyth Fables, and the worldbuildi
 
 This project is currently stalling a bit between playtests 2 and 3 as I had a lot of feedback on playtest 2 and have not had a chance to redesign some of those elements before moving on to playtest 3.
 
-[Playtest 1](public/resources/fables_playtest_1.pdf) | [Playtest 2](public/resources/fables_playtest_2.pdf)
+[Playtest 1](/resources/fables_playtest_1.pdf) | [Playtest 2](/resources/fables_playtest_2.pdf)
 
-![playtest 2 print cover](/public/images/playtest2cover.jpg)
+![playtest 2 print cover](/images/playtest2cover.jpg)

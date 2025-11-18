@@ -4,7 +4,7 @@ description: "Welcome to OmniMyth, your source for unique tabletop RPG content a
 page: "home"
 ---
 
-![OmniMyth Logo](/public/images/omnimyth-logo.png)
+![OmniMyth Logo](/images/omnimyth-logo.png)
 
 ## Games Made With and For Friends
 
@@ -34,7 +34,7 @@ Access a handful of tools, resources, and projects that I have made for use at m
 
 ### Solo Passion
 
-Everything you see here is compiled by a single hobbyist who has enlisted various friends and lovely talented indipendent artists and designers. All artists retain the rights to their own works to be used as they please in other products and were paid their asking rate for their work.
+Everything you see here is compiled by a single hobbyist who has enlisted various friends and lovely, skilled, independent artists and designers. All artists retain the rights to their own works to be used as they please in other products and were paid their asking rate for their work.
 
 ---
 
